@@ -1,0 +1,43 @@
+name: Deploy to EC2 via CodeDeploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Zip source
+        run: zip -r myapp.zip . -x '*.git*'
+
+      - name: Upload to S3
+        uses: jakejarvis/s3-sync-action@master
+        with:
+          args: --acl private
+        env:
+          AWS_S3_BUCKET: myapp-codedeploy-bucket
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1
+          SOURCE_DIR: ./
+          DEST_DIR: myapp/
+
+      - name: Deploy via CodeDeploy
+        uses: webfactory/code-deploy-action@v1
+        with:
+          application-name: MyNodeApp
+          deployment-group: MyAppDeploymentGroup
+          deployment-description: "GitHub CI/CD Deployment"
+          s3-bucket: myapp-codedeploy-bucket
+          s3-key: myapp/myapp.zip
+          bundle-type: zip
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1
+
